@@ -1,12 +1,12 @@
 use std::str;
-use rand::distributions::{Alphanumeric, DistString};
+use rand::distributions::{Alphanumeric, DistString, Distribution, Standard};
 use rand::Rng;
 
-fn base64_encode(input: &str) -> String {
+fn base64_encode<T: AsRef<[u8]>>(input: T) -> String {
     let b64vec: Vec<char> = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".chars().collect();
 
     // First stage, get a binary string
-    let mut binstr = input.as_bytes()
+    let mut binstr = input.as_ref()
                       .iter()
                       .map(|x| format!("{:08b}", x))
                       .fold("".to_string(), |cur: String, nxt: String| cur + &nxt);
@@ -36,15 +36,30 @@ fn base64_encode(input: &str) -> String {
     return out;
 }
         
-fn main() {
-    loop {
-        let mut rng = rand::thread_rng();
-        let input = Alphanumeric.sample_string(&mut rand::thread_rng(), rng.gen_range(1..64));
+fn compare<T: AsRef<[u8]>>(input: T) {
         let us = base64_encode(&input);
         let them = base64::encode(&input);
         if us != them {
-            panic!("{}: {} vs {}", input, us, them);
+            panic!("{} vs {}", us, them);
         }
-        println!("{}: {}", input, us);
+        println!("bsae64: {}\n\n", us);
+}
+
+fn alphanumeric_fuzz() {
+    let mut rng = rand::thread_rng();
+    let input = Alphanumeric.sample_string(&mut rand::thread_rng(), rng.gen_range(1..64));
+    compare(input);
+}
+
+fn binary_fuzz() {
+    let mut rng = rand::thread_rng();
+    let input: Vec<u8> = Standard.sample_iter(&mut rand::thread_rng())
+                                 .take(rng.gen_range(1..1000))
+                                 .collect();
+    compare(input);
+}
+fn main() {
+    loop {
+        binary_fuzz();
     }
 }
